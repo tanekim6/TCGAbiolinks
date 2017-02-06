@@ -13,13 +13,13 @@
 
 <title>Introduction</title>
 
-<script src="libs/jquery-1.11.3/jquery.min.js"></script>
+<script src="index_files/jquery-1.11.3/jquery.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="libs/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
-<script src="libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
-<script src="libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
-<script src="libs/bootstrap-3.3.5/shim/respond.min.js"></script>
-<script src="libs/navigation-1.1/tabsets.js"></script>
+<link href="index_files/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="index_files/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="index_files/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="index_files/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="index_files/navigation-1.1/tabsets.js"></script>
 <style type="text/css">
 /* padding for bootstrap navbar */
 body {
@@ -317,29 +317,38 @@ $(document).ready(function () {
 
 <p>TCGAbiolinks is able to access The National Cancer Institute (NCI) Genomic Data Commons (GDC) thorough its<br />
 <a href="https://gdc.cancer.gov/developers/gdc-application-programming-interface-api">GDC Application Programming Interface (API)</a> to search, download and prepare relevant data for analysis in R.</p>
-<p>You can install the stable version from Biocondcutor or the development version using devtools::install_github(‘BioinformaticsFMRP/TCGAbiolinks’).</p>
+<div id="installation" class="section level1">
+<h1>Installation</h1>
+<p>You can install the stable version from <a href="http://bioconductor.org/packages/release/bioc/html/TCGAbiolinks.html">Bioconductor</a>, or the development version using:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">devtools::<span class="kw">install_github</span>(<span class="st">&#39;BioinformaticsFMRP/TCGAbiolinks&#39;</span>)</code></pre></div>
+</div>
+<div id="question-and-issues" class="section level1">
+<h1>Question and issues</h1>
 <p>Please use <a href="https://github.com/BioinformaticsFMRP/TCGAbiolinks/issues">Github issues</a> if you want to file bug reports or feature requests.</p>
-<p>To run the examples please load the following libraries:</p>
+</div>
+<div id="required-libraries" class="section level1">
+<h1>Required libraries</h1>
+<p>The examples in this tutorial use the following libraries:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(TCGAbiolinks)
-<span class="kw">library</span>(SummarizedExperiment)
 <span class="kw">library</span>(dplyr)
 <span class="kw">library</span>(DT)</code></pre></div>
+</div>
 <div id="session-info" class="section level1">
 <h1>Session info</h1>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">version</code></pre></div>
-<pre><code>##                _
-## platform       x86_64-pc-linux-gnu
-## arch           x86_64
-## os             linux-gnu
-## system         x86_64, linux-gnu
-## status         Under development (unstable)
-## major          3
-## minor          4.0
-## year           2017
-## month          01
-## day            23
-## svn rev        72020
-## language       R
+<pre><code>##                _                                                 
+## platform       x86_64-pc-linux-gnu                               
+## arch           x86_64                                            
+## os             linux-gnu                                         
+## system         x86_64, linux-gnu                                 
+## status         Under development (unstable)                      
+## major          3                                                 
+## minor          4.0                                               
+## year           2017                                              
+## month          01                                                
+## day            23                                                
+## svn rev        72020                                             
+## language       R                                                 
 ## version.string R Under development (unstable) (2017-01-23 r72020)
 ## nickname       Unsuffered Consequences</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">packageVersion</span>(<span class="st">&quot;TCGAbiolinks&quot;</span>)</code></pre></div>
