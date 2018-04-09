@@ -74,8 +74,8 @@ GDCprepare <- function(query,
                                                          "Translation_Start_Site",
                                                          "Nonstop_Mutation")){
 
-    isServeOK()
     if(missing(query)) stop("Please set query parameter")
+    isServeOK(query$awg)
     if(any(duplicated(query$results[[1]]$cases)) & query$data.type != "Clinical data" & query$data.type !=  "Protein expression quantification") {
         dup <- query$results[[1]]$cases[duplicated(query$results[[1]]$cases)]
         dup <- query$results[[1]][query$results[[1]]$cases %in% dup,c("tags","cases","experimental_strategy")]
@@ -88,6 +88,7 @@ GDCprepare <- function(query,
     }
     # We save the files in project/source/data.category/data.type/file_id/file_name
     source <- ifelse(query$legacy,"legacy","harmonized")
+    source <- ifelse(query$awg,"awg",source)
     files <- file.path(query$results[[1]]$project, source,
                        gsub(" ","_",query$results[[1]]$data_category),
                        gsub(" ","_",query$results[[1]]$data_type),
@@ -104,11 +105,12 @@ GDCprepare <- function(query,
                                            data.type = ifelse(!is.na(query$data.type),  as.character(query$data.type),  unique(query$results[[1]]$data_type)),
                                            workflow.type = unique(query$results[[1]]$analysis_workflow_type),
                                            cases = query$results[[1]]$cases,
-                                           summarizedExperiment)
+                                           summarizedExperiment,
+                                           awg =  query$awg)
     } else if(grepl("Copy Number Variation",query$data.category,ignore.case = TRUE)) {
         data <- readCopyNumberVariation(files, query$results[[1]]$cases)
     }  else if(grepl("DNA methylation",query$data.category, ignore.case = TRUE)) {
-        data <- readDNAmethylation(files, query$results[[1]]$cases, summarizedExperiment, unique(query$platform))
+        data <- readDNAmethylation(files, query$results[[1]]$cases, summarizedExperiment, unique(query$platform), awg =  query$awg)
     }  else if(grepl("Protein expression",query$data.category,ignore.case = TRUE)) {
         data <- readProteinExpression(files, query$results[[1]]$cases)
     }  else if(grepl("Simple Nucleotide Variation",query$data.category,ignore.case = TRUE)) {
@@ -378,7 +380,7 @@ makeSEfromGeneExpressionQuantification <- function(df, assay.list, genome="hg19"
     return(rse)
 }
 
-makeSEfromDNAmethylation <- function(df, probeInfo=NULL){
+makeSEfromDNAmethylation <- function(df, probeInfo=NULL,awg = FALSE){
     if(is.null(probeInfo)) {
         gene.location <- get.GRCh.bioMart()
         gene.GR <- GRanges(seqnames = paste0("chr", gene.location$chromosome_name),
@@ -395,11 +397,11 @@ makeSEfromDNAmethylation <- function(df, probeInfo=NULL){
                              Gene_Symbol = df$Gene_Symbol)
 
         names(rowRanges) <- as.character(df$Composite.Element.REF)
-        colData <-  colDataPrepare(colnames(df)[5:ncol(df)])
+        colData <-  colDataPrepare(colnames(df)[5:ncol(df)],awg = awg)
         assay <- data.matrix(subset(df,select = c(5:ncol(df))))
     } else {
         rowRanges <- makeGRangesFromDataFrame(probeInfo, keep.extra.columns = TRUE)
-        colData <-  colDataPrepare(colnames(df)[(ncol(probeInfo) + 1):ncol(df)])
+        colData <-  colDataPrepare(colnames(df)[(ncol(probeInfo) + 1):ncol(df)],awg = awg)
         assay <- data.matrix(subset(df,select = c((ncol(probeInfo) + 1):ncol(df))))
     }
     colnames(assay) <- rownames(colData)
@@ -414,7 +416,7 @@ makeSEfromDNAmethylation <- function(df, probeInfo=NULL){
 # TODO: Improve this function to be more generic as possible
 #' @importFrom GenomicRanges makeGRangesFromDataFrame
 #' @importFrom tibble as_data_frame
-readDNAmethylation <- function(files, cases, summarizedExperiment = TRUE, platform){
+readDNAmethylation <- function(files, cases, summarizedExperiment = TRUE, platform, awg = FALSE){
     if (grepl("OMA00",platform)){
         pb <- txtProgressBar(min = 0, max = length(files), style = 3)
         for (i in seq_along(files)) {
@@ -461,9 +463,9 @@ readDNAmethylation <- function(files, cases, summarizedExperiment = TRUE, platfo
         }
         if (summarizedExperiment) {
             if(skip == 0) {
-                df <- makeSEfromDNAmethylation(df, probeInfo = as_data_frame(df)[,grep("TCGA",colnames(df),invert = TRUE)])
+                df <- makeSEfromDNAmethylation(df, probeInfo = as_data_frame(df)[,grep("TCGA",colnames(df),invert = TRUE)],awg = awg)
             } else {
-                df <- makeSEfromDNAmethylation(df)
+                df <- makeSEfromDNAmethylation(df,awg = awg)
             }
         } else {
             setDF(df)
@@ -629,7 +631,7 @@ colDataPrepareTCGA <- function(barcode){
 #'                                       "Illumina Human Methylation 27"))
 #'   colDataPrepare(getResults(query.met)$cases)
 #' }
-colDataPrepare <- function(barcode){
+colDataPrepare <- function(barcode,awg = FALSE){
     # For the moment this will work only for TCGA Data
     # We should search what TARGET data means
     message("Starting to add information to samples")
@@ -646,9 +648,9 @@ colDataPrepare <- function(barcode){
             start <- 1 + step * i
             end <- ifelse(((i + 1) * step) > length(ret$patient), length(ret$patient),((i + 1) * step))
             if(is.null(patient.info)) {
-                patient.info <- getBarcodeInfo(ret$patient[start:end])
+                patient.info <- getBarcodeInfo(ret$patient[start:end],awg)
             } else {
-                patient.info <- rbind(patient.info,getBarcodeInfo(ret$patient[start:end]))
+                patient.info <- rbind(patient.info,getBarcodeInfo(ret$patient[start:end],awg))
             }
         }
         patient.info
@@ -658,16 +660,16 @@ colDataPrepare <- function(barcode){
             start <- 1 + step * i
             end <- ifelse(((i + 1) * step) > length(ret$patient), length(ret$patient),((i + 1) * step))
             if(is.null(patient.info)) {
-                patient.info <- getBarcodeInfo(ret$patient[start:end])
+                patient.info <- getBarcodeInfo(ret$patient[start:end],awg)
             } else {
-                patient.info <- rbind(patient.info,getBarcodeInfo(ret$patient[start:end]))
+                patient.info <- rbind(patient.info,getBarcodeInfo(ret$patient[start:end],awg))
             }
         }
         patient.info
     })
     ret <- merge(ret,patient.info, by.x = "patient", by.y = "submitter_id", all.x = TRUE )
     # Add FFPE information to sample
-    ret <- addFFPE(ret)
+    ret <- addFFPE(ret,awg)
     if(!"project_id" %in% colnames(ret)) {
         aux <- getGDCprojects()[,5:6]
         aux <- aux[aux$disease_type == unique(ret$disease_type),2]
@@ -826,13 +828,13 @@ readProteinExpression <- function(files,cases) {
     return(df)
 }
 
-makeSEfromTranscriptomeProfiling <- function(data, cases, assay.list){
+makeSEfromTranscriptomeProfiling <- function(data, cases, assay.list,awg = FALSE){
     # How many cases do we have?
     # We wil consider col 1 is the ensemble gene id, other ones are data
     size <- ncol(data)
 
     # Prepare Patient table
-    colData <-  colDataPrepare(cases)
+    colData <-  colDataPrepare(cases,awg = awg)
 
     gene.location <- get.GRCh.bioMart("hg38")
     aux <- strsplit(data$X1,"\\.")
@@ -870,7 +872,7 @@ makeSEfromTranscriptomeProfiling <- function(data, cases, assay.list){
     return(rse)
 }
 
-readTranscriptomeProfiling <- function(files, data.type, workflow.type, cases,summarizedExperiment) {
+readTranscriptomeProfiling <- function(files, data.type, workflow.type, cases,summarizedExperiment, awg = FALSE) {
     if(grepl("Gene Expression Quantification", data.type, ignore.case = TRUE)){
 
         # Status working for:
@@ -892,7 +894,7 @@ readTranscriptomeProfiling <- function(files, data.type, workflow.type, cases,su
                 setTxtProgressBar(pb, i)
             }
             close(pb)
-            if(summarizedExperiment) df <- makeSEfromTranscriptomeProfiling(df,cases,workflow.type)
+            if(summarizedExperiment) df <- makeSEfromTranscriptomeProfiling(df,cases,workflow.type,awg = awg)
         }
     } else if(grepl("miRNA", workflow.type, ignore.case = TRUE) & grepl("miRNA", data.type, ignore.case)) {
         pb <- txtProgressBar(min = 0, max = length(files), style = 3)
@@ -937,7 +939,7 @@ readCopyNumberVariation <- function(files, cases){
 }
 
 # getBarcodeInfo(c("TCGA-A6-6650-01B"))
-addFFPE <- function(df) {
+addFFPE <- function(df,awg = FALSE) {
     message("Add FFPE information. More information at: \n=> https://cancergenome.nih.gov/cancersselected/biospeccriteria \n=> http://gdac.broadinstitute.org/runs/sampleReports/latest/FPPP_FFPE_Cases.html")
     barcode <- df$barcode
     patient <- df$patient
@@ -961,7 +963,7 @@ addFFPE <- function(df) {
             start <- 1 + step * i
             end <- ifelse(((i + 1) * step) > length(df$patient), length(df$patient),((i + 1) * step))
             if(is.null(ffpe.info)) {
-                ffpe.info <- getFFPE(df$patient[start:end])
+                ffpe.info <- getFFPE(df$patient[start:end],awg)
             } else {
                 ffpe.info <- rbind(ffpe.info,getFFPE(df$patient[start:end]))
             }
@@ -977,8 +979,8 @@ addFFPE <- function(df) {
 # getFFPE("TCGA-A6-6650")
 #' @importFrom plyr rbind.fill
 #' @importFrom httr content
-getFFPE <- function(patient){
-    baseURL <- "https://gdc-api.nci.nih.gov/cases/?"
+getFFPE <- function(patient,awg){
+    baseURL <- ifelse(awg,"https://api.awg.gdc.cancer.gov/cases/?","https://gdc-api.nci.nih.gov/cases/?")
     options.pretty <- "pretty=true"
     options.expand <- "expand=samples"
     option.size <- paste0("size=",length(patient))
@@ -1002,8 +1004,8 @@ getFFPE <- function(patient){
     return(results)
 }
 # getBarcodeInfo(c("TCGA-A6-6650"))
-getBarcodeInfo <- function(barcode) {
-    baseURL <- "https://gdc-api.nci.nih.gov/cases/?"
+getBarcodeInfo <- function(barcode,awg) {
+    baseURL <- ifelse(awg,"https://api.awg.gdc.cancer.gov/cases/?","https://gdc-api.nci.nih.gov/cases/?")
     options.pretty <- "pretty=true"
     options.expand <- "expand=project,diagnoses,diagnoses.treatments,annotations,family_histories,demographic,exposures"
     option.size <- paste0("size=",length(barcode))

@@ -53,6 +53,7 @@ GDCdownload <- function(query,
     if(length(unique(getResults(query)$data_type)) > 1) stop("We can only download one data type. Please use data.type argument in GDCquery to filter results.")
 
     source <- ifelse(query$legacy,"legacy","harmonized")
+    source <- ifelse(query$awg,"awg",source)
 
     dir.create(directory, showWarnings = FALSE, recursive = TRUE)
     for(proj in unique(unlist(query$project))){
