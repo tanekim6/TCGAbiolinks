@@ -82,6 +82,7 @@ GDCquery <- function(project,
                      data.category,
                      data.type,
                      workflow.type,
+                     awg = FALSE,
                      legacy = FALSE,
                      access,
                      platform,
@@ -90,7 +91,7 @@ GDCquery <- function(project,
                      experimental.strategy,
                      sample.type){
 
-    isServeOK()
+    isServeOK(awg)
     suppressWarnings({
         # prepare output
         if(missing(sample.type)) {
@@ -137,8 +138,9 @@ GDCquery <- function(project,
     print.header("GDCquery: Searching in GDC database","section")
     message("Genome of reference: ",ifelse(legacy,"hg19","hg38"))
     # Check arguments
-    checkProjectInput(project)
-    checkDataCategoriesInput(project, data.category, legacy)
+    checkProjectInput(project,awg)
+    print(awg)
+    checkDataCategoriesInput(project, data.category, legacy,awg)
     if(!is.na(data.type)) checkDataTypeInput(legacy = legacy, data.type = data.type)
     if(!any(is.na(sample.type))) checkBarcodeDefinition(sample.type)
 
@@ -149,6 +151,7 @@ GDCquery <- function(project,
                            data.category = data.category,
                            data.type = data.type,
                            legacy = legacy,
+                           awg = awg,
                            workflow.type = workflow.type,
                            platform = platform)
         message("ooo Project: ", proj)
@@ -165,6 +168,7 @@ GDCquery <- function(project,
                                data.category = data.category,
                                data.type = data.type,
                                legacy = legacy,
+                               awg = awg,
                                workflow.type = NA,
                                platform = NA)
             json  <- tryCatch(
@@ -366,9 +370,10 @@ GDCquery <- function(project,
     return(ret)
 }
 
-getGDCquery <- function(project, data.category, data.type, legacy, workflow.type,platform){
+getGDCquery <- function(project, data.category, data.type, legacy, awg, workflow.type,platform){
     # Get manifest using the API
     baseURL <- ifelse(legacy,"https://gdc-api.nci.nih.gov/legacy/files/?","https://gdc-api.nci.nih.gov/files/?")
+    baseURL <- ifelse(awg,"https://api.awg.gdc.cancer.gov/files/?",baseURL)
     options.pretty <- "pretty=true"
     if(data.category == "Protein expression" & legacy) {
         options.expand <- "fields=archive.revision,archive.file_name,md5sum,state,data_category,file_id,platform,file_name,file_size,md5sum,submitter_id,data_type&expand=cases.samples.portions,cases.project,center,analysis"
@@ -377,7 +382,7 @@ getGDCquery <- function(project, data.category, data.type, legacy, workflow.type
     } else {
         options.expand <- "expand=cases.samples.portions.analytes.aliquots,cases.project,center,analysis"
     }
-    option.size <- paste0("size=",getNbFiles(project,data.category,legacy))
+    option.size <- paste0("size=",getNbFiles(project,data.category,legacy,awg))
     option.format <- paste0("format=JSON")
 
     options.filter <- paste0("filters=",
@@ -509,6 +514,7 @@ getBarcodeDefinition <- function(type = "TCGA"){
 #' @param tumor a valid tumor
 #' @param save.csv Write maf file into a csv document
 #' @param directory Directory/Folder where the data will downloaded. Default: GDCdata
+#' @param awg Use GDC AWG data portal instead of main GDC data portal
 #' @export
 #' @importFrom data.table fread
 #' @import readr stringr
@@ -526,7 +532,8 @@ getBarcodeDefinition <- function(type = "TCGA"){
 GDCquery_Maf <- function(tumor,
                          save.csv = FALSE,
                          directory = "GDCdata",
-                         pipelines = NULL){
+                         pipelines = NULL,
+                         awg = FALSE){
 
     if(is.null(pipelines)) stop("Please select the pipeline argument (muse, varscan2, somaticsniper, mutect2)")
     if(grepl("varscan",pipelines, ignore.case = TRUE)) {
@@ -553,6 +560,7 @@ GDCquery_Maf <- function(tumor,
                       data.category = "Simple Nucleotide Variation",
                       data.type = "Masked Somatic Mutation",
                       workflow.type = workflow.type,
+                      awg = awg,
                       access = "open")
 
     if(nrow(query$results[[1]]) == 0) stop("No MAF file found for this type of workflow")
@@ -599,13 +607,13 @@ TCGAquery_recount2<-function(project, tissue=c()){
              "uterus", "vagina")
   tissue<-paste(unlist(strsplit(tissue, " ")), collapse="_")
   Res<-list()
-  
+
   if(tolower(project)=="gtex"){
     for(t_i in tissue){
       if(tissue%in%tissues){
         con<-"http://duffel.rail.bio/recount/SRP012682/rse_gene_"
         con<-paste0(con,tissue,".Rdata")
-        
+
         message(paste0("downloading Range Summarized Experiment for: ", tissue))
         load(url(con))
         Res[[paste0(project,"_", t_i)]]<-rse_gene

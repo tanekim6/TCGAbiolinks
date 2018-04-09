@@ -4,7 +4,10 @@
 \alias{getGDCprojects}
 \title{Retrieve all GDC projects}
 \usage{
-getGDCprojects()
+getGDCprojects(awg = FALSE)
+}
+\arguments{
+\item{awg}{Use GDC AWG data portal instead of main GDC data portal}
 }
 \value{
 A data frame with last GDC projects

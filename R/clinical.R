@@ -110,6 +110,7 @@ TCGAquery_MatchedCoupledSampleTypes <- function(barcode,typesample){
 #' @param project A valid project (see list with getGDCprojects()$project_id)]
 #' @param type A valid type. Options "clinical", "Biospecimen"  (see list with getGDCprojects()$project_id)]
 #' @param save.csv Write clinical information into a csv document
+#' @param awg Use GDC AWG data portal instead of main GDC data portal
 #' @export
 #' @importFrom data.table rbindlist as.data.table
 #' @importFrom jsonlite fromJSON
@@ -117,18 +118,19 @@ TCGAquery_MatchedCoupledSampleTypes <- function(barcode,typesample){
 #' clin <- GDCquery_clinic("TCGA-ACC", type = "clinical", save.csv = TRUE)
 #' clin <- GDCquery_clinic("TCGA-ACC", type = "biospecimen", save.csv = TRUE)
 #' @return A data frame with the clinical information
-GDCquery_clinic <- function(project, type = "clinical", save.csv = FALSE){
-    checkProjectInput(project)
+GDCquery_clinic <- function(project, type = "clinical", save.csv = FALSE, awg = FALSE){
+    checkProjectInput(project,awg)
     if(!grepl("clinical|Biospecimen",type,ignore.case = TRUE)) stop("Type must be clinical or biospecemen")
-    baseURL <- "https://gdc-api.nci.nih.gov/cases/?"
+    baseURL <-
+    baseUrl <- ifelse(awg,"https://api.awg.gdc.cancer.gov/cases/?","https://gdc-api.nci.nih.gov/cases/?")
     options.pretty <- "pretty=true"
     if(grepl("clinical",type,ignore.case = TRUE)) {
         options.expand <- "expand=diagnoses,diagnoses.treatments,annotations,family_histories,demographic,exposures"
-        option.size <- paste0("size=",getNbCases(project,"Clinical"))
+        option.size <- paste0("size=",getNbCases(project,"Clinical",awg = awg))
         files.data_category <- "Clinical"
     } else {
         options.expand <- "expand=samples,samples.portions,samples.portions.analytes,samples.portions.analytes.aliquots"
-        option.size <- paste0("size=",getNbCases(project,"Biospecimen"))
+        option.size <- paste0("size=",getNbCases(project,"Biospecimen",awg = awg))
         files.data_category <- "Biospecimen"
     }
     options.filter <- paste0("filters=",
@@ -138,6 +140,7 @@ GDCquery_clinic <- function(project, type = "clinical", save.csv = FALSE){
                              files.data_category,
                              URLencode('"]}}]}'))
     url <- paste0(baseURL,paste(options.pretty,options.expand, option.size, options.filter,"format=json", sep = "&"))
+    print(url)
     json  <- tryCatch(
         getURL(url,fromJSON,timeout(600),simplifyDataFrame = TRUE),
         error = function(e) {

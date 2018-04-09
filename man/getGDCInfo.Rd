@@ -4,7 +4,10 @@
 \alias{getGDCInfo}
 \title{Check GDC server status}
 \usage{
-getGDCInfo()
+getGDCInfo(awg = FALSE)
+}
+\arguments{
+\item{awg}{Use GDC AWG data portal instead of main GDC data portal}
 }
 \value{
 Return true all status

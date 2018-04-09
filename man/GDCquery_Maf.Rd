@@ -5,7 +5,7 @@
 \title{Retrieve open access maf files from GDC server}
 \usage{
 GDCquery_Maf(tumor, save.csv = FALSE, directory = "GDCdata",
-  pipelines = NULL)
+  pipelines = NULL, awg = FALSE)
 }
 \arguments{
 \item{tumor}{a valid tumor}
@@ -17,6 +17,8 @@ GDCquery_Maf(tumor, save.csv = FALSE, directory = "GDCdata",
 \item{pipelines}{Four separate variant calling pipelines are implemented for GDC data harmonization.
 Options: muse, varscan2, somaticsniper, mutect2. For more information:
 https://gdc-docs.nci.nih.gov/Data/Bioinformatics_Pipelines/DNA_Seq_Variant_Calling_Pipeline/}
+
+\item{awg}{Use GDC AWG data portal instead of main GDC data portal}
 }
 \value{
 A data frame with the maf file information

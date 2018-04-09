@@ -4,7 +4,7 @@
 \alias{GDCquery_clinic}
 \title{Get GDC clinical data}
 \usage{
-GDCquery_clinic(project, type = "clinical", save.csv = FALSE)
+GDCquery_clinic(project, type = "clinical", save.csv = FALSE, awg = FALSE)
 }
 \arguments{
 \item{project}{A valid project (see list with getGDCprojects()$project_id)]}
@@ -12,6 +12,8 @@ GDCquery_clinic(project, type = "clinical", save.csv = FALSE)
 \item{type}{A valid type. Options "clinical", "Biospecimen"  (see list with getGDCprojects()$project_id)]}
 
 \item{save.csv}{Write clinical information into a csv document}
+
+\item{awg}{Use GDC AWG data portal instead of main GDC data portal}
 }
 \value{
 A data frame with the clinical information

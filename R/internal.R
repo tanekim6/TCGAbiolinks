@@ -25,12 +25,13 @@
 #'   https://gdc-api.nci.nih.gov/status
 #' @export
 #' @importFrom jsonlite fromJSON
+#' @param awg Use GDC AWG data portal instead of main GDC data portal
 #' @examples
 #' status <- isServeOK()
 #' @return Return true if status is ok
-isServeOK <- function(){
+isServeOK <- function(awg){
     tryCatch({
-        status <- getGDCInfo()$status
+        status <- getGDCInfo(awg)$status
         if(status != "OK") stop("GDC server down, try to use this package later")
     },error = function(e) stop("GDC server down, try to use this package later"))
     return(TRUE)
@@ -42,16 +43,18 @@ isServeOK <- function(){
 #'   https://gdc-api.nci.nih.gov/status
 #' @export
 #' @importFrom jsonlite fromJSON
+#' @param awg Use GDC AWG data portal instead of main GDC data portal
 #' @examples
 #' info <- getGDCInfo()
 #' @return Return true all status
-getGDCInfo <- function(){
-    status <- fromJSON("https://gdc-api.nci.nih.gov/status",simplifyDataFrame = TRUE)
+getGDCInfo <- function(awg = FALSE){
+    baseUrl <- ifelse(awg,"https://api.awg.gdc.cancer.gov/status","https://gdc-api.nci.nih.gov/status")
+    status <- fromJSON(baseUrl,simplifyDataFrame = TRUE)
     return(status)
 }
 
-checkProjectInput <- function(project){
-    projects <- getGDCprojects()
+checkProjectInput <- function(project,awg = FALSE){
+    projects <- getGDCprojects(awg)
     if(missing(project)) {
         print(knitr::kable(projects[,c(4:6,8)]))
         stop("Please set a project argument from the column id above")
@@ -63,8 +66,8 @@ checkProjectInput <- function(project){
         }
 }
 
-checkLegacyPlatform <- function(project,data.category, legacy = FALSE){
-    project.summary <- getProjectSummary(project, legacy)
+checkLegacyPlatform <- function(project,data.category, legacy = FALSE, awg = FALSE){
+    project.summary <- getProjectSummary(project, legacy,awg)
     if(missing(data.category)) {
         print(knitr::kable(project.summary$data_categories))
         stop("Please set a data.category argument from the column data_category above")
@@ -138,9 +141,11 @@ checkDataTypeInput <- function(legacy, data.type){
     }
 }
 
-checkDataCategoriesInput <- function(project,data.category, legacy = FALSE){
+checkDataCategoriesInput <- function(project,data.category, legacy = FALSE, awg = FALSE){
     for(proj in project){
-        project.summary <- getProjectSummary(proj, legacy)
+        print(awg)
+
+        project.summary <- getProjectSummary(proj, legacy,awg)
         if(missing(data.category)) {
             print(knitr::kable(project.summary$data_categories))
             stop("Please set a data.category argument from the column data_category above")
@@ -165,15 +170,18 @@ checkBarcodeDefinition <- function(definition){
 #' @description
 #'   getGDCprojects uses the following api to get projects
 #'   https://gdc-api.nci.nih.gov/projects
+#' @param awg Use GDC AWG data portal instead of main GDC data portal
 #' @export
 #' @import readr stringr
 #' @examples
 #' projects <- getGDCprojects()
 #' @return A data frame with last GDC projects
-getGDCprojects <- function(){
-    url <- "https://gdc-api.nci.nih.gov/projects?size=1000&format=json"
+getGDCprojects <- function(awg = FALSE){
+    baseUrl <- ifelse(awg,"https://api.awg.gdc.cancer.gov/","https://gdc-api.nci.nih.gov/")
+    url <- paste0(baseUrl,"/projects?size=1000&format=json")
     json <- fromJSON(content(GET(url), as = "text", encoding = "UTF-8"), simplifyDataFrame = TRUE)
     projects <- json$data$hits
+    print(url)
     projects$tumor <- unlist(lapply(projects$project_id, function(x){unlist(str_split(x,"-"))[2]}))
     if(nrow(projects) == 0) stop("I couldn't access GDC API. Please, check if it is not down.")
     return(projects)
@@ -201,19 +209,20 @@ move <- function(from, to) {
     }
 }
 
-getProjectSummary <- function(project, legacy = FALSE){
+getProjectSummary <- function(project, legacy = FALSE,awg = FALSE){
     baseURL <- ifelse(legacy,"https://gdc-api.nci.nih.gov/legacy/projects/","https://gdc-api.nci.nih.gov/projects/")
+    baseURL <- ifelse(awg,"https://api.awg.gdc.cancer.gov/projects/",baseURL)
     url <- paste0(baseURL, project,"?expand=summary,summary.data_categories&pretty=true")
     return(fromJSON(url,simplifyDataFrame = TRUE)$data$summary)
 }
 
-getNbCases <- function(project, data.category, legacy = FALSE){
-    summary <- getProjectSummary(project, legacy)$data_categories
+getNbCases <- function(project, data.category, legacy = FALSE,awg = FALSE){
+    summary <- getProjectSummary(project, legacy, awg = awg)$data_categories
     nb <- summary[summary$data_category == data.category,"case_count"]
     return(nb)
 }
-getNbFiles <- function(project, data.category, legacy = FALSE){
-    summary <- getProjectSummary(project, legacy)$data_categories
+getNbFiles <- function(project, data.category, legacy = FALSE, awg = FALSE){
+    summary <- getProjectSummary(project, legacy,awg = awg)$data_categories
     nb <- summary[summary$data_category == data.category,"file_count"]
     return(nb)
 }
