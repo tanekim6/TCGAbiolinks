@@ -4,7 +4,7 @@
 \alias{colDataPrepare}
 \title{Create samples information matrix for GDC samples}
 \usage{
-colDataPrepare(barcode)
+colDataPrepare(barcode, awg = FALSE)
 }
 \arguments{
 \item{barcode}{TCGA or TARGET barcode}

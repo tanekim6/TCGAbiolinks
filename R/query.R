@@ -11,6 +11,7 @@
 #' @param sample.type A sample type to filter the files to download
 #' @param barcode A list of barcodes to filter the files to download
 #' @param legacy Search in the legacy repository
+#' @param awg Use GDC AWG data portal instead of main GDC data portal
 #' @param file.type To be used in the legacy database for some platforms,
 #' to define which file types to be used.
 #' @param workflow.type GDC workflow type
@@ -82,8 +83,8 @@ GDCquery <- function(project,
                      data.category,
                      data.type,
                      workflow.type,
-                     awg = FALSE,
                      legacy = FALSE,
+                     awg = FALSE,
                      access,
                      platform,
                      file.type,

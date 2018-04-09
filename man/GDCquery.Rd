@@ -4,8 +4,8 @@
 \alias{GDCquery}
 \title{Query GDC data}
 \usage{
-GDCquery(project, data.category, data.type, workflow.type, awg = FALSE,
-  legacy = FALSE, access, platform, file.type, barcode, experimental.strategy,
+GDCquery(project, data.category, data.type, workflow.type, legacy = FALSE,
+  awg = FALSE, access, platform, file.type, barcode, experimental.strategy,
   sample.type)
 }
 \arguments{
@@ -18,6 +18,8 @@ GDCquery(project, data.category, data.type, workflow.type, awg = FALSE,
 \item{workflow.type}{GDC workflow type}
 
 \item{legacy}{Search in the legacy repository}
+
+\item{awg}{Use GDC AWG data portal instead of main GDC data portal}
 
 \item{access}{Filter by access type. Possible values: controlled, open}
 
