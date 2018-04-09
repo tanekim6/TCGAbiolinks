@@ -46,8 +46,8 @@ GDCdownload <- function(query,
                         method = "api",
                         directory = "GDCdata",
                         files.per.chunk = NULL) {
-    isServeOK()
     if(missing(query)) stop("Please set query argument")
+    isServeOK(query$awg)
 
     if(!(method %in% c("api","client"))) stop("method arguments possible values are: 'api' or 'client'")
     if(length(unique(getResults(query)$data_type)) > 1) stop("We can only download one data type. Please use data.type argument in GDCquery to filter results.")
@@ -117,6 +117,7 @@ GDCdownload <- function(query,
             }
 
             server <- ifelse(query$legacy,"https://gdc-api.nci.nih.gov/legacy/data/", "https://gdc-api.nci.nih.gov/data/")
+            server <- ifelse(query$awg,"https://api.awg.gdc.cancer.gov/data/", server)
 
             if(is.null(files.per.chunk) & sum(as.numeric(manifest$size)) > 10^9) {
                 message("The total size of files is big. We will download files in chunks")

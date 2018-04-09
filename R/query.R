@@ -139,7 +139,6 @@ GDCquery <- function(project,
     message("Genome of reference: ",ifelse(legacy,"hg19","hg38"))
     # Check arguments
     checkProjectInput(project,awg)
-    print(awg)
     checkDataCategoriesInput(project, data.category, legacy,awg)
     if(!is.na(data.type)) checkDataTypeInput(legacy = legacy, data.type = data.type)
     if(!any(is.na(sample.type))) checkBarcodeDefinition(sample.type)
@@ -360,6 +359,7 @@ GDCquery <- function(project,
                       data.category = data.category,
                       data.type = data.type,
                       legacy = legacy,
+                      awg = awg,
                       access = I(list(access)),
                       experimental.strategy =  I(list(experimental.strategy)),
                       file.type = file.type,

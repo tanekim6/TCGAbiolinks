@@ -143,8 +143,6 @@ checkDataTypeInput <- function(legacy, data.type){
 
 checkDataCategoriesInput <- function(project,data.category, legacy = FALSE, awg = FALSE){
     for(proj in project){
-        print(awg)
-
         project.summary <- getProjectSummary(proj, legacy,awg)
         if(missing(data.category)) {
             print(knitr::kable(project.summary$data_categories))
@@ -181,7 +179,6 @@ getGDCprojects <- function(awg = FALSE){
     url <- paste0(baseUrl,"/projects?size=1000&format=json")
     json <- fromJSON(content(GET(url), as = "text", encoding = "UTF-8"), simplifyDataFrame = TRUE)
     projects <- json$data$hits
-    print(url)
     projects$tumor <- unlist(lapply(projects$project_id, function(x){unlist(str_split(x,"-"))[2]}))
     if(nrow(projects) == 0) stop("I couldn't access GDC API. Please, check if it is not down.")
     return(projects)
