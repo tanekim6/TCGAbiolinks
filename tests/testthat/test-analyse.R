@@ -187,7 +187,7 @@ test_that("Results from TCGAanalyze_DEA and DMR in starburst plot are correct", 
                                              diffmean.cut = 0.0,
                                              logFC.cut = 0,
                                              met.platform = "450K",
-                                             genome = "hg38",
+                                             genome = "hg19",
                                              names = TRUE,
                                              return.plot = TRUE)$starburst
 
