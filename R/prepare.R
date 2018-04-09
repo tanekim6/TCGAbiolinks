@@ -1004,7 +1004,7 @@ getFFPE <- function(patient,awg){
     return(results)
 }
 # getBarcodeInfo(c("TCGA-A6-6650"))
-getBarcodeInfo <- function(barcode,awg) {
+getBarcodeInfo <- function(barcode,awg = FALSE) {
     baseURL <- ifelse(awg,"https://api.awg.gdc.cancer.gov/cases/?","https://gdc-api.nci.nih.gov/cases/?")
     options.pretty <- "pretty=true"
     options.expand <- "expand=project,diagnoses,diagnoses.treatments,annotations,family_histories,demographic,exposures"
