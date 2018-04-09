@@ -965,7 +965,7 @@ addFFPE <- function(df,awg = FALSE) {
             if(is.null(ffpe.info)) {
                 ffpe.info <- getFFPE(df$patient[start:end],awg)
             } else {
-                ffpe.info <- rbind(ffpe.info,getFFPE(df$patient[start:end]))
+                ffpe.info <- rbind(ffpe.info,getFFPE(df$patient[start:end],awg))
             }
         }
         ffpe.info

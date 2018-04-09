@@ -29,7 +29,7 @@
 #' @examples
 #' status <- isServeOK()
 #' @return Return true if status is ok
-isServeOK <- function(awg=FALSE){
+isServeOK <- function(awg = FALSE){
     tryCatch({
         status <- getGDCInfo(awg)$status
         if(status != "OK") stop("GDC server down, try to use this package later")

@@ -4,7 +4,7 @@
 \alias{isServeOK}
 \title{Check GDC server status is OK}
 \usage{
-isServeOK(awg)
+isServeOK(awg = FALSE)
 }
 \arguments{
 \item{awg}{Use GDC AWG data portal instead of main GDC data portal}
