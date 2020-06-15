@@ -1015,6 +1015,321 @@ TCGAanalyze_DMC <- function(data,
     return(results)
 }
 
+                                   #' @title Differentially methylated regions Analysis
+#' @description
+#'   This function will search for differentially methylated CpG sites,
+#'   which are regarded as possible functional regions involved
+#'   in gene transcriptional regulation.
+#'
+#'   In order to find these regions we use the beta-values (methylation values
+#'   ranging from 0.0 to 1.0) to compare two groups.
+#'
+#'   Firstly, it calculates the difference between the mean methylation of each
+#'   group for each probes. Secondly, it calculates the p-value using the
+#'   wilcoxon test using the Benjamini-Hochberg adjustment method.
+#'   The default parameters will require a minimum absolute beta values delta
+#'   of 0.2 and a false discovery rate (FDR)-adjusted Wilcoxon rank-sum P-value
+#'   of < 0.01 for the difference.
+#'
+#'   After these analysis, we save a volcano plot (x-axis:diff mean methylation,
+#'   y-axis: significance) that will help the user identify the differentially
+#'   methylated CpG sites and return the object with the calculus in the rowRanges.
+#'
+#'   If the calculus already exists in the object it will not recalculated.
+#'   You should set overwrite parameter to TRUE to force it, or remove the
+#'   collumns with the results from the object.
+#'
+#' @param data  SummarizedExperiment obtained from the TCGAPrepare
+#' @param groupCol  Columns with the groups inside the SummarizedExperiment
+#'  object. (This will be obtained by the function colData(data))
+#' @param group1 In case our object has more than 2 groups, you should set
+#' the name of the group
+#' @param group2 In case our object has more than 2 groups, you should set
+#' the name of the group
+#' @param calculate.pvalues.probes In order to get the probes faster the user can select to calculate the pvalues
+#' only for the probes with a difference in DNA methylation. The default is to calculate to all probes.
+#' Possible values: "all", "differential". Default "all"
+#' @param plot.filename Filename. Default: volcano.pdf, volcano.svg, volcano.png. If set to FALSE, there will be no plot.
+#' @param legend Legend title
+#' @param color vector of colors to be used in graph
+#' @param title main title. If not specified it will be
+#' "Volcano plot (group1 vs group2)
+#' @param ylab y axis text
+#' @param xlab x axis text
+#' @param xlim x limits to cut image
+#' @param ylim y limits to cut image
+#' @param label vector of labels to be used in the figure.
+#' Example: c("Not Significant","Hypermethylated in group1",
+#' "Hypomethylated in group1"))
+#' @param p.cut p values threshold. Default: 0.01
+#' @param probe.names is probe.names
+#' @param diffmean.cut diffmean threshold. Default: 0.2
+#' @param adj.method Adjusted method for the p-value calculation
+#' @param paired Wilcoxon paired parameter. Default: FALSE
+#' @param overwrite Overwrite the pvalues and diffmean values if already in the object
+#' for both groups? Default: FALSE
+#' @param save Save object with results? Default: TRUE
+#' @param save.directory Directory to save the files. Default: working directory
+#' @param filename Name of the file to save the object.
+#' @param cores Number of cores to be used in the non-parametric test
+#' Default = groupCol.group1.group2.rda
+#' @import ggplot2
+#' @importFrom SummarizedExperiment colData rowRanges assay rowRanges<- values<- SummarizedExperiment metadata<-
+#' @importFrom S4Vectors metadata
+#' @importFrom dplyr data_frame
+#' @importFrom methods as
+#' @import readr
+#' @import utils
+#' @export
+#' @return Volcano plot saved and the given data with the results
+#' (diffmean.group1.group2,p.value.group1.group2,
+#' p.value.adj.group1.group2,status.group1.group2)
+#' in the rowRanges where group1 and group2 are the names of the groups
+#' @examples
+#' nrows <- 200; ncols <- 20
+#' counts <- matrix(runif(nrows * ncols, 1, 1e4), nrows)
+#' rowRanges <- GenomicRanges::GRanges(rep(c("chr1", "chr2"), c(50, 150)),
+#'                    IRanges::IRanges(floor(runif(200, 1e5, 1e6)), width=100),
+#'                     strand=sample(c("+", "-"), 200, TRUE),
+#'                     feature_id=sprintf("ID%03d", 1:200))
+#'colData <- S4Vectors::DataFrame(Treatment=rep(c("ChIP", "Input"), 5),
+#'                     row.names=LETTERS[1:20],
+#'                     group=rep(c("group1","group2"),c(10,10)))
+#'data <- SummarizedExperiment::SummarizedExperiment(
+#'          assays=S4Vectors::SimpleList(counts=counts),
+#'          rowRanges=rowRanges,
+#'          colData=colData)
+#' SummarizedExperiment::colData(data)$group <- c(rep("group 1",ncol(data)/2),
+#'                          rep("group 2",ncol(data)/2))
+#' hypo.hyper <- TCGAanalyze_DMR(data, p.cut = 0.85,"group","group 1","group 2")
+#' SummarizedExperiment::colData(data)$group2 <- c(rep("group_1",ncol(data)/2),
+#'                          rep("group_2",ncol(data)/2))
+#' hypo.hyper <- TCGAanalyze_DMR(data, p.cut = 0.85,"group2","group_1","group_2")
+TCGAanalyze_DMR <- function(data,
+                            groupCol=NULL,
+                            group1=NULL,
+                            group2=NULL,
+                            calculate.pvalues.probes = "all",
+                            plot.filename = "methylation_volcano.pdf",
+                            ylab =  expression(paste(-Log[10],
+                                                     " (FDR corrected -P values)")),
+                            xlab =  expression(paste(
+                                "DNA Methylation difference (",beta,"-values)")
+                            ),
+                            title = NULL,
+                            legend = "Legend",
+                            color = c("black",  "red", "darkgreen"),
+                            label = NULL,
+                            xlim = NULL,
+                            ylim = NULL,
+                            p.cut = 0.01,
+                            probe.names = FALSE,
+                            diffmean.cut = 0.2,
+                            paired = FALSE,
+                            adj.method="BH",
+                            overwrite=FALSE,
+                            cores = 1,
+                            save=TRUE,
+                            save.directory = ".",
+                            filename=NULL) {
+    .e <- environment()
+
+    names(color) <- as.character(1:3)
+    # Check if object is a summarized Experiment
+    if(class(data)!= class(as(SummarizedExperiment(),"RangedSummarizedExperiment"))){
+        stop(paste0("Sorry, but I'm expecting a Summarized Experiment object, but I got a: ", class(data)))
+    }
+    # Check if object has NAs for all samples
+    if(any(rowSums(!is.na(assay(data)))== 0)){
+        stop(paste0("Sorry, but we found some probes with NA for all samples in your data, please either remove/or replace them"))
+    }
+
+    if (is.null(groupCol)) {
+        message("Please, set the groupCol parameter")
+        return(NULL)
+    }
+    if(!(groupCol %in% colnames(colData(data)))){
+        stop(paste0("column ",groupCol, " not found in the object"))
+    }
+
+    if ( length(unique(colData(data)[,groupCol])) != 2 &&
+         is.null(group1) && is.null(group2)) {
+        message("Please, set the group1 and group2 parameters")
+        return(NULL)
+    } else if (length(unique(colData(data)[,groupCol])) == 2  && (
+        is.null(group1) || is.null(group2)) ) {
+        group1 <- unique(colData(data)[,groupCol])[1]
+        group2 <- unique(colData(data)[,groupCol])[2]
+    } else {
+        message(paste0("Group1:", group1))
+        message(paste0("Group2:", group2))
+    }
+
+    # Check if groups has at least one sample
+    if(!any(colData(data)[,groupCol] == group1,na.rm = TRUE)){
+        stop(paste0("Sorry, but ", group1, " has no samples" ))
+    }
+    if(!any(colData(data)[,groupCol] == group2,na.rm = TRUE)){
+        stop(paste0("Sorry, but ", group2, " has no samples" ))
+    }
+
+
+    # defining title and label if not specified by the user
+    if (is.null(title)) {
+        title <- paste("Volcano plot", "(", group2, "vs", group1,")")
+    }
+
+    if (is.null(label)) {
+        label <- c("Not Significant",
+                   "Hypermethylated",
+                   "Hypomethylated")
+        label[2:3] <-  paste(label[2:3], "in", group2)
+    }
+    group1.col <- gsub("[[:punct:]]| ", ".", group1)
+    group2.col <- gsub("[[:punct:]]| ", ".", group2)
+    diffcol <- paste("diffmean", group1.col, group2.col,sep = ".")
+    if (!(diffcol %in% colnames(values(data))) || overwrite) {
+        data <- diffmean(data,groupCol, group1 = group1, group2 = group2, save = save)
+        if (!(diffcol %in% colnames(values(rowRanges(data))))) {
+            stop(paste0("Error! Not found ", diffcol))
+        }
+    }
+
+    pcol <- paste("p.value.adj", group2.col, group1.col,sep = ".")
+    if(!(pcol %in% colnames(values(data)))){
+        pcol <- paste("p.value.adj", group1.col, group2.col, sep = ".")
+    }
+    if (!(pcol %in% colnames(values(data))) | overwrite) {
+        if(calculate.pvalues.probes == "all"){
+            suppressWarnings({
+                data <- calculate.pvalues(data, groupCol, group1, group2,
+                                          paired = paired,
+                                          method = adj.method,
+                                          cores = cores,
+                                          save = save)
+            })
+        } else  if(calculate.pvalues.probes == "differential"){
+            message(paste0("Caculating p-values only for probes with a difference of mean methylation equal or higher than ", diffmean.cut))
+            print(diffcol)
+            print(colnames(values(data)))
+            diff.probes <- abs(values(data)[,diffcol]) > diffmean.cut
+            nb <- length(which(diff.probes == TRUE))
+            if(nb == 0) {
+                warning("No probes differenly methylated")
+                return(NULL)
+            }
+            print(paste0("Number of probes differenly methylated: ",nb))
+            data <- calculate.pvalues(data[diff.probes,], groupCol, group1, group2,
+                                      paired = paired,
+                                      method = adj.method,
+                                      cores = cores,
+                                      save = save)
+        }
+
+        # An error should not happen, if it happens (probably due to an incorret
+        # user input) we will stop
+        if (!(pcol %in% colnames(values(data))))  stop(paste0("Error! Not found ", pcol))
+    }
+    log <- paste0("TCGAanalyze_DMR.",gsub(" ", ".",group1),".",gsub(" ", ".",group2))
+    assign(log,c("groupCol" = groupCol,
+                 "group1" = group1.col,
+                 "group2" = group2.col,
+                 "plot.filename" = plot.filename,
+                 "xlim" = xlim,
+                 "ylim" = ylim,
+                 "p.cut" = p.cut,
+                 "diffmean.cut" = diffmean.cut,
+                 "paired" = "paired",
+                 "adj.method" = adj.method))
+    metadata(data)[[log]] <- (eval(as.symbol(log)))
+    statuscol <- paste("status",group1.col,group2.col,sep = ".")
+    statuscol2 <- paste("status",group2.col,group1.col,sep = ".")
+    values(data)[,statuscol] <-  "Not Significant"
+    values(data)[,statuscol2] <-  "Not Significant"
+
+    # get significant data
+    sig <-  values(data)[,pcol] < p.cut
+    sig[is.na(sig)] <- FALSE
+    # hypermethylated samples compared to old state
+    hyper <- values(data)[,diffcol]  > diffmean.cut
+    hyper[is.na(hyper)] <- FALSE
+    if (any(hyper & sig)) values(data)[hyper & sig,statuscol] <- "Hypermethylated"
+    if (any(hyper & sig)) values(data)[hyper & sig,statuscol2] <- "Hypomethylated"
+
+    # hypomethylated samples compared to old state
+    hypo <-  values(data)[,diffcol] < (-diffmean.cut)
+    hypo[is.na(hypo)] <- FALSE
+
+    if (any(hypo & sig)) values(data)[hypo & sig,statuscol] <- "Hypomethylated"
+    if (any(hypo & sig)) values(data)[hypo & sig,statuscol2] <- "Hypermethylated"
+
+    # Plot a volcano plot
+    names <- NULL
+    if(probe.names) names <- values(data)$probeID
+
+    if(plot.filename != FALSE) {
+        TCGAVisualize_volcano(x = values(data)[,diffcol],
+                              y = values(data)[,pcol],
+                              filename = plot.filename,
+                              ylab =  ylab,
+                              xlab = xlab,
+                              title = title,
+                              legend= legend,
+                              label = label,
+                              names = names,
+                              x.cut = diffmean.cut,
+                              y.cut = p.cut)
+    }
+    if (save) {
+
+        # saving results into a csv file
+        csv <- paste0(paste("DMR_results",
+                            gsub("_",".",groupCol),
+                            group1.col,
+                            group2.col,
+                            "pcut",p.cut,"meancut",diffmean.cut,  sep = "_"),".csv")
+        dir.create(save.directory,showWarnings = FALSE,recursive = TRUE)
+        csv <- file.path(save.directory,csv)
+        message(paste0("Saving the results also in a csv file: "), csv)
+        df <- values(data)
+        if (any(hyper & sig)) df[hyper & sig,statuscol] <- paste("Hypermethylated","in", group2)
+        if (any(hyper & sig)) df[hyper & sig,statuscol2] <- paste("Hypomethylated","in", group1)
+        if (any(hypo & sig)) df[hypo & sig,statuscol] <- paste("Hypomethylated","in", group2)
+        if (any(hypo & sig)) df[hypo & sig,statuscol2] <- paste("Hypermethylated","in", group1)
+        # get metadata not created by this function
+        idx <- grep("mean|status|value",colnames(df),invert = TRUE)
+
+        write_csv(as.data.frame(df[,
+                                   c(colnames(df)[idx],
+                                     paste("mean", group1.col,sep = "."),
+                                     paste("mean", group2.col,sep = "."),
+                                     paste("diffmean", group1.col, group2.col, sep = "."),
+                                     paste("p.value", group1.col, group2.col, sep = "."),
+                                     paste("p.value.adj", group1.col, group2.col, sep = "."),
+                                     statuscol,
+                                     paste("diffmean",group2.col,group1.col,sep = "."),
+                                     paste("p.value",group2.col,group1.col,sep = "."),
+                                     paste("p.value.adj",group2.col,group1.col,sep = "."),
+                                     statuscol2)
+                                   ]),path =  csv)
+        if (is.null(filename)) {
+            filename <- paste0(paste(
+                gsub("_",".",groupCol),
+                group1.col,
+                group2.col,
+                "pcut",p.cut,
+                "meancut",diffmean.cut,
+                sep = "_"),
+                ".rda")
+            filename <- file.path(save.directory, filename)
+        }
+
+        # saving results into R object
+        save(data, file = filename)
+    }
+    return(data)
+}
+                                   
 #' @title Create starburst plot
 #'
 #' @description
