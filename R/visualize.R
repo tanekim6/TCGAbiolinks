@@ -82,10 +82,10 @@ TCGAvisualize_SurvivalCoxNET <- function(clinical_patient,
     cfu <- clinical_patient[clinical_patient[,"bcr_patient_barcode"] %in% substr(colnames(dataGE),1,12),]
     rownames(cfu) <- cfu$bcr_patient_barcode
     cfu <- as.data.frame(subset(cfu, select=c("bcr_patient_barcode",
-                                              "days_to_last_followup",
+                                              "days_to_last_follow_up",
                                               "days_to_death",
                                               "vital_status",
-                                              "age_at_initial_pathologic_diagnosis",
+                                              "age_at_diagnosis",
                                               "gender")
     )
     )
@@ -94,9 +94,10 @@ TCGAvisualize_SurvivalCoxNET <- function(clinical_patient,
     cfu <- cfu[,-1]
     colnames(cfu)   <- c("time","timeDead","status","Age","Gender")
 
-    cfu[which(cfu$status == "Alive"),"status"]<-0
-    cfu[which(cfu$status == "Dead"),"time"]<- cfu[which(cfu$status=="Dead"),"timeDead"]
-    cfu[which(cfu$status == "Dead"),"status"]<-1
+    cfu$status <- tolower(cfu$status)
+    cfu[which(cfu$status == "alive"),"status"]<-0
+    cfu[which(cfu$status == "dead"),"time"]<- cfu[which(cfu$status=="dead"),"timeDead"]
+    cfu[which(cfu$status == "dead"),"status"]<-1
     cfu$Gender <- tolower(cfu$Gender)
     cfu <- cfu[,-2]
     cfu <- as.data.frame(subset(cfu, select=c("time","status")))
@@ -159,7 +160,7 @@ TCGAvisualize_SurvivalCoxNET <- function(clinical_patient,
 
     # Identification of gene-active network
     net <- dnet::dNetPipeline(g=network, pval=pvals, method="customised",
-                        significance.threshold=5e-02)
+                        significance.threshold=0.05)
     # visualisation of the gene-active network itself
     ## the layout of the network visualisation (fixed in different visuals)
     glayout <- igraph::layout.fruchterman.reingold(net)
